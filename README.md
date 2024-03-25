@@ -1,2 +1,2 @@
-# Crypto_research_engine
-Crypto Engine for research purporse
+# Crypto Environment for Multi-Agent RL 
+Crypto Engine + PettingZoo for Multi-RL
