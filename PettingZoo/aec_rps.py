@@ -53,6 +53,7 @@ class raw_env(AECEnv):
     metadata which specifies which modes can be put into the render() method.
     At least human mode should be supported.
     The "name" metadata allows the environment to be pretty printed.
+    metadata = 다른 데이터를 설명해주는 데이터
     """
 
     metadata = {"render_modes": ["human"], "name": "rps_v2"}
@@ -147,9 +148,10 @@ class raw_env(AECEnv):
         - agent_selection
         And must set up the environment so that render(), step(), and observe()
         can be called without issues.
-        Here it sets up the state dictionary which is used by step() and the observations dictionary which is used by step() and observe()
+        Here it sets up the state dictionary which is used by step() 
+        and the observations dictionary which is used by step() and observe()
         """
-        # self.aec_env.reset(seed=seed) # 추가함 ..
+
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0 for agent in self.agents}
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
@@ -163,9 +165,9 @@ class raw_env(AECEnv):
         """
         Our agent_selector utility allows easy cyclic stepping through the agents list.
         """
-        self._agent_selector = agent_selector(self.agents)
-        self.agent_selection = self._agent_selector.next()
-
+        self._agent_selector = agent_selector(self.agents) # 1) pettingzoo.utils에서 바로 가져옴-> 안에 agents를 넣으면 
+        self.agent_selection = self._agent_selector.next() # 2) .next로 호출할 때 마다 agent가 순차적으로 돌아가며 선택 됨
+                                                           # self.agent_selection은 env.agent_iter 및 env.last()에서 AECEnv 클래스를 통해 그리고 step에서 사용됨
     def step(self, action):
         """
         step(action) takes in an action for the current agent (specified by
@@ -193,7 +195,7 @@ class raw_env(AECEnv):
         self._cumulative_rewards[agent] = 0
 
         # stores action of current agent
-        self.state[self.agent_selection] = action
+        self.state[self.agent_selection] = action # {'player_0': 1, 'player_1': 3}
 
         # collect reward if it is the last agent to act
         if self._agent_selector.is_last():
@@ -210,9 +212,7 @@ class raw_env(AECEnv):
 
             # observe the current state
             for i in self.agents:
-                self.observations[i] = self.state[
-                    self.agents[1 - self.agent_name_mapping[i]]
-                ]
+                self.observations[i] = self.state[self.agents[1 - self.agent_name_mapping[i]]]
         else:
             # necessary so that observe() returns a reasonable observation at all times.
             self.state[self.agents[1 - self.agent_name_mapping[agent]]] = NONE
