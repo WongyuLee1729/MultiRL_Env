@@ -56,8 +56,8 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', type=float, default=0.95, help='discount factor')
     parser.add_argument('--buffer_capacity', type=int, default=int(1e6), help='capacity of replay buffer')
     parser.add_argument('--batch_size', type=int, default=1024, help='batch-size of replay buffer')
-    parser.add_argument('--actor_lr', type=float, default=0.01, help='learning rate of actor')
-    parser.add_argument('--critic_lr', type=float, default=0.01, help='learning rate of critic')
+    parser.add_argument('--actor_lr', type=float, default=0.05, help='learning rate of actor')
+    parser.add_argument('--critic_lr', type=float, default=0.05, help='learning rate of critic')
     args = parser.parse_args()
     
     # create folder to save result
@@ -69,7 +69,7 @@ if __name__ == '__main__':
     os.makedirs(result_dir)
 
     env, dim_info = get_env(args.env_name, args.episode_length)
-    # maddpg = MADDPG(dim_info, args.buffer_capacity, args.batch_size, args.actor_lr, args.critic_lr,result_dir)
+
     maac = MAAC(dim_info, args.buffer_capacity, args.batch_size, args.actor_lr, args.critic_lr,result_dir)
     
     step = 0  # global step counter
@@ -93,8 +93,7 @@ if __name__ == '__main__':
             # env.render()
             # buffer memory에 저장 
             # buffer에서 MDP를 가져와서 학습할 때는 exploration / exploitation에서 얻은 값들을 shuffle하므로 섞인 값을 사용함 
-            # maddpg.add(obs, action, reward, next_obs, done) 
-            maac.add(obs, maac_action, reward, next_obs, done) # !!!MAAC!!!
+            maac.add(obs, maac_action, reward, next_obs, done)
             
             for agent_id, r in reward.items():  # update reward (각 step에 대한 reward를 cumsum해 줌)
                 agent_reward[agent_id] += r
