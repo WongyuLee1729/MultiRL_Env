@@ -8,18 +8,15 @@ import torch.nn.functional as F
 from torch.optim import Adam
 from torch import nn, Tensor
 from torch.autograd import Variable
-# from Agent import Agent
 from maac_agent import Agent as maac_agent
 from Buffer import Buffer
 from copy import deepcopy
 # ADDED 
 from Attention_critic import AttentionCritic
 from New_Attention_critic import AttentionCritic as NewAttentionCritic
-# from New_Attention_critic import QKV
 MSELoss = torch.nn.MSELoss()
 
 from agents import AttentionAgent
-
 
 
 
@@ -144,8 +141,6 @@ class MAAC:
         self.niter = 0
 
 
-    # =============================================================================
-
     # https://github.com/ikostrikov/pytorch-ddpg-naf/blob/master/ddpg.py#L11
     def soft_update(target, source, tau):
         """
@@ -170,32 +165,6 @@ class MAAC:
         """
         for target_param, param in zip(target.parameters(), source.parameters()):
             target_param.data.copy_(param.data)
-    
-    
-
-
-
-    # @property
-    # def policies(self):
-    #     return [a.policy for a in self.agents]
-
-    # @property
-    # def target_policies(self):
-    #     return [a.target_policy for a in self.agents]
-
-    # def step(self, observations, explore=False):
-    #     """
-    #     Take a step forward in environment with all agents
-    #     Inputs:
-    #         observations: List of observations for each agent
-    #     Outputs:
-    #         actions: List of actions for each agent
-    #     """
-    #     return [a.step(obs, explore=explore) for a, obs in zip(self.agents,
-    #                                                            observations)]
-
-    # =============================================================================
-
 
 
     def add(self, obs, action, reward, next_obs, done):
@@ -331,59 +300,6 @@ class MAAC:
             # agent.update_actor(actor_loss + 1e-3 * actor_loss_pse) # theta + Alpha * del log(pi_theta) * Q_w(s,a)
             # # self.logger.info(f'{agent_id}: critic loss: {critic_loss.item()}, actor loss: {actor_loss.item()}')
 
-# =============================================================================
-# ORIGINAL CODE
-#             # # MAAC actor update 
-#             # samp_act = []
-#             # all_probs = []
-#             # all_log_pis = []
-#             # all_pol_regs = []
-#     
-#             # for a_i, pi, ob in zip(range(self.nagents), self.policies, obs):
-#             #     curr_ac, probs, log_pi, pol_regs, ent = pi(
-#             #         ob, return_all_probs=True, return_log_pi=True,
-#             #         regularize=True, return_entropy=True)
-#             #     # logger.add_scalar('agent%i/policy_entropy' % a_i, ent,
-#             #     #                   self.niter)
-#             #     samp_act.append(curr_ac)
-#             #     all_probs.append(probs)
-#             #     all_log_pis.append(log_pi)
-#             #     all_pol_regs.append(pol_regs)
-#     
-#             # critic_in = list(zip(obs, samp_act))
-#             # critic_rets = self.critic(critic_in, return_all_q=True)
-#             # for a_i, probs, log_pi, pol_regs, (q, all_q) in zip(range(self.nagents), all_probs,
-#             #                                                     all_log_pis, all_pol_regs,
-#             #                                                     critic_rets):
-#             #     curr_agent = self.agents[a_i]
-#             #     v = (all_q * probs).sum(dim=1, keepdim=True)
-#             #     pol_target = q - v
-#             #     if soft:
-#             #         pol_loss = (log_pi * (log_pi / self.reward_scale - pol_target).detach()).mean()
-#             #     else:
-#             #         pol_loss = (log_pi * (-pol_target).detach()).mean()
-#             #     for reg in pol_regs:
-#             #         pol_loss += 1e-3 * reg  # policy regularization
-#             #     # don't want critic to accumulate gradients from policy loss
-#             #     disable_gradients(self.critic)
-#             #     pol_loss.backward()
-#             #     enable_gradients(self.critic)
-#     
-#             #     grad_norm = torch.nn.utils.clip_grad_norm(
-#             #         curr_agent.policy.parameters(), 0.5)
-#             #     curr_agent.policy_optimizer.step()
-#             #     curr_agent.policy_optimizer.zero_grad()
-#     
-#             #     # if logger is not None:
-#             #     #     logger.add_scalar('agent%i/losses/pol_loss' % a_i,
-#             #     #                       pol_loss, self.niter)
-#             #     #     logger.add_scalar('agent%i/grad_norms/pi' % a_i,
-#             #     #                       grad_norm, self.niter)
-# 
-# 
-# 
-# =============================================================================
-
 
             # MAAC actor update 
             samp_act = []
@@ -435,36 +351,6 @@ class MAAC:
                 #                       grad_norm, self.niter)
 
 
-
-
-#%%
-# # =====================================MAAC========================================
-
-#     # https://github.com/ikostrikov/pytorch-ddpg-naf/blob/master/ddpg.py#L11
-#     def soft_update(target, source, tau):
-#         """
-#         Perform DDPG soft update (move target params toward source based on weight
-#         factor tau)
-#         Inputs:
-#             target (torch.nn.Module): Net to copy parameters to
-#             source (torch.nn.Module): Net whose parameters to copy
-#             tau (float, 0 < x < 1): Weight factor for update
-#         """
-#         for target_param, param in zip(target.parameters(), source.parameters()):
-#             target_param.data.copy_(target_param.data * (1.0 - tau) + param.data * tau)
-
-#     def update_all_targets(self):
-#         """
-#         Update all target networks (called after normal updates have been
-#         performed for each agent)
-#         """
-#         soft_update(self.target_critic, self.critic, self.tau)
-#         for a in self.agents:
-#             soft_update(a.target_policy, a.policy, self.tau)
-
-# # ====================================MAAC====================================
-
-#%%
 
     def update_target(self, tau):
         def soft_update(from_network, to_network):
