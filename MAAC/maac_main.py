@@ -83,12 +83,11 @@ if __name__ == '__main__':
             step += 1
             if step < args.random_steps: 
                 # exploration: 에이전트별 행동(0~4)를 선택
-                action = {agent_id: env.action_space(agent_id).sample() for agent_id in env.agents}
-                maac_action = {agent_id: env.action_space(agent_id).sample() for agent_id in env.agents} # !!!MAAC!!!
+                action = {agent_id: env.action_space(agent_id).sample() for agent_id in env.agents} # !!!MAAC!!!
             else: # random_steps 이상 step을 진행헀다면..
                 # exploitation: actor(neuralnet)을 이용해서 action 값을 뽑아옴, actor는 상태값만 받음을 기억!
                 # action = maddpg.select_action(obs)
-                maac_action = maac.select_action(obs) # !!!MAAC!!!
+                action = maac.select_action(obs) # !!!MAAC!!!
             next_obs, reward, done, info = env.step(action) # 행동을 환경에 던지고 결과들을 받아옴 (parallel환경이므로 모든 에이전트들이 각각 한번에 받음) 
             # env.render()
             # buffer memory에 저장 
