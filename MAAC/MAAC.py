@@ -7,16 +7,15 @@ import torch
 import torch.nn.functional as F
 from torch.optim import Adam
 from torch import nn, Tensor
-from torch.autograd import Variable
+# from torch.autograd import Variable
 from maac_agent import Agent as maac_agent
 from Buffer import Buffer
 from copy import deepcopy
 # ADDED 
 from Attention_critic import AttentionCritic
-from New_Attention_critic import AttentionCritic as NewAttentionCritic
 MSELoss = torch.nn.MSELoss()
 
-from agents import AttentionAgent
+# from agents import AttentionAgent
 
 
 

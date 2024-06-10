@@ -92,7 +92,7 @@ if __name__ == '__main__':
             # env.render()
             # buffer memory에 저장 
             # buffer에서 MDP를 가져와서 학습할 때는 exploration / exploitation에서 얻은 값들을 shuffle하므로 섞인 값을 사용함 
-            maac.add(obs, maac_action, reward, next_obs, done)
+            maac.add(obs, action, reward, next_obs, done)
             
             for agent_id, r in reward.items():  # update reward (각 step에 대한 reward를 cumsum해 줌)
                 agent_reward[agent_id] += r
