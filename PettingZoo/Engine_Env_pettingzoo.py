@@ -5,10 +5,6 @@ from pettingzoo.utils import agent_selector
 from gym import spaces
 from simulation_final_data_provider import SimulationDataProvider
 
-# PyUpbit을 사용하여 데이터 가져오기
-def get_candle_data(ticker='KRW-BTC', interval='minute1', count=100):
-    df = pyupbit.get_ohlcv(ticker, interval=interval, count=count)
-    return df
 
 # 샘플 멀티에이전트 환경 정의
 class CryptoTradingEnv(AECEnv):
@@ -29,7 +25,7 @@ class CryptoTradingEnv(AECEnv):
         self.agent_name_mapping = dict(zip(self.agents, list(range(2))))
         self.data_len = int(count)
 
-    def dim_info(self):
+    def _dim_info(self,):
         dim_info = {}
         for agent_id in self.agents:
             dim_info[agent_id] = []
@@ -37,7 +33,7 @@ class CryptoTradingEnv(AECEnv):
             dim_info[agent_id].append(self.action_space[agent_id].n)
         return dim_info
 
-    def set_observation_spaces(self, col_num = 5): # col_num 넘겨 주는 방식 변경할 것 
+    def set_observation_spaces(self, col_num = 4): # col_num 넘겨 주는 방식 변경할 것 
         self.observation_space = {agent: spaces.Box(low=-np.inf, high=np.inf,
                 shape=(col_num,), dtype=np.float32) for agent in self.agents}
         
@@ -52,15 +48,6 @@ class CryptoTradingEnv(AECEnv):
         at any time after reset() is called.
         '''
 
-        # if self.current_step < self.data_len:
-        #     data = self.candle_data.get_info() # dr.get_info()
-            
-        #     obs = np.array([data['opening_price'], 
-        #             data['high_price'], 
-        #             data['closing_price'],
-        #             data['acc_volume']])
-            
-        #     self.observations = {agent: obs for agent in self.agents} # 모든 에이전트가 동일한 값 받음
         return self.observations
         
 
@@ -77,27 +64,39 @@ class CryptoTradingEnv(AECEnv):
         And must set up the environment so that render(), step(), and ovserve()
         can be called without issues
         '''
+        self.agents = [f"agent_{i}" for i in range(2)]  # 에이전트 수 예시
         self.candle_data.initialize_simulation(end=end_date, count=count)
         self.current_step = 0
         self.rewards = {agent: 0 for agent in self.agents}
         self._cumulative_rewards = {agent: 0 for agent in self.agents}
-        self.dones = {agent: False for agent in self.agents}
+        self.done = {agent: False for agent in self.agents}
         self.infos = {agent: {} for agent in self.agents}
         
         self.agent_selector = agent_selector(self.agents)
         self.agent_selector.reset()
         self.agent_selection = self.agent_selector.next()
         
-        self.observations = {agent: 0 for agent in self.agents}
+        
+        data = self.candle_data.get_info() # n-1 call
+        obs = np.array([data['opening_price'], 
+                data['high_price'], 
+                data['closing_price'],
+                data['acc_volume']])
+
+        self.observations = {agent: obs for agent in self.agents} 
+
+        # self.observations = {agent: 0 for agent in self.agents}
         
         self.set_observation_spaces()
         self.set_action_spaces()
         self.all_done = False
+        return self.observations
         # dim_val = self.dim_info() 
 
     def step(self, actions):
         '''
-        step(actions) takes in an action for the current agent (specified by agent_selection)
+        step(actions) takes in an action for the current agent 
+        (specified by agent_selection)
         and need to update 
         -reward
         -_cumulative_rewards 
@@ -108,9 +107,8 @@ class CryptoTradingEnv(AECEnv):
         And any internal state used by observe() or render() 
         '''
 
-
         for agent, action in actions.items():
-            if not self.dones[agent]:
+            if not self.done[agent]:
                 # 행동에 따라 보상과 관찰값을 다르게 설정
                 if action == 0:  # 예: 매수
                     self.rewards[agent] = np.random.randn() * 2  # 예시 보상
@@ -121,15 +119,15 @@ class CryptoTradingEnv(AECEnv):
                 self._cumulative_rewards[agent] += self.rewards[agent]
                 
 
-        self.current_step += 1
-        # if self.current_step == 39:
-        #     print('11111111111111111111111111111111111111111111')
-        if self.current_step >= self.data_len - 1:
+        self.current_step += 1 
+        # !!!!!!! 한번의 에피소드가 끝나는 조건을 코딩해 줄 것 !!!!!!!
+        if (self.current_step >= self.data_len - 1) or self.current_step%130 == 0:
             for agent in self.agents:
-                self.dones[agent] = True
+                self.done[agent] = True  
             self.all_done = True
-            
-            return self.observations, self.rewards, self.dones, self.infos
+            # print("1111111111111111111111")
+            self.agents = []
+            return self.observations, self.rewards, self.done, self.infos
 
         else:
             data = self.candle_data.get_info() # dr.get_info()
@@ -141,7 +139,7 @@ class CryptoTradingEnv(AECEnv):
             
             self.observations = {agent: obs for agent in self.agents} 
 
-            return self.observations, self.rewards, self.dones, self.infos
+            return self.observations, self.rewards, self.done, self.infos
 
 
     def render(self, mode='human'):
@@ -170,7 +168,6 @@ if __name__ == "__main__":
     import argparse 
     from simulation_final_data_provider import SimulationDataProvider
     
-    
     parser = argparse.ArgumentParser()
     parser.add_argument("--end_date", type=str, default = "2023-04-30T07:30:00", help="End date of data")
     parser.add_argument("--count", type=int, default = 40, help="size of the Data")
@@ -181,8 +178,6 @@ if __name__ == "__main__":
     opt = parser.parse_args()
     end_str = opt.end_date.replace(" ", "T")
     
-    # 캔들 데이터 가져오기
-    # candle_data = get_candle_data() # old version
     # 캔들 from data engine 
     candle_data = SimulationDataProvider("ETH")
     
@@ -192,13 +187,12 @@ if __name__ == "__main__":
     # dim_info = env.dim_info
 
 
-
     # 환경 실행 예제
     env.reset(end_date=end_str, count = opt.count)
     while not env.all_done:
         # observation = env.observe()
         for agent in env.agent_iter():
-            if env.dones[agent]:
+            if env.done[agent]:
                 env.step(None)
                 continue
             # action = env.action_spaces[agent].sample()  # 무작위 행동 선택
@@ -210,25 +204,6 @@ if __name__ == "__main__":
             print(f"Agent: {agent}, Next Observation: {next_obs}, Reward: {reward}, Done: {done}, Info: {info}")
             env.render()
 
-    
-    
-
-    # env.reset(end_date=end_str, count = opt.count)
-    # while not env.all_done:
-
-    #     for agent in env.agent_iter():
-    #         observation = env.observe(agent)
-    #         if env.dones[agent]:
-    #             env.step(None)
-    #             continue
-    #         action = env.action_spaces[agent].sample()  # 무작위 행동 선택
-    #         next_obs, reward, done, info = env.step(action)
-    #         print(f"Agent: {agent}, Next Observation: {next_obs}, Reward: {reward}, Done: {done}, Info: {info}")
-    #         env.render()
-    #         if env.all_done:
-    #             break  # 모든 에이전트가 done 상태일 때 루프 종료
-
-    
     
     '''
     Reward 
