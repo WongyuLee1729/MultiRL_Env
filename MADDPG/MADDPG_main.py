@@ -1,14 +1,18 @@
-import argparse
+import sys
 import os
+
+# other_folder 경로를 sys.path에 추가
+sys.path.append('/Users/wongyui/Desktop/MARL_Env/engine')
+from Engine_Env import CryptoTradingEnv
+from simulation_final_data_provider import SimulationDataProvider
 
 import matplotlib.pyplot as plt
 import numpy as np
 from pettingzoo.mpe import simple_adversary_v2, simple_spread_v2, simple_tag_v2
-
 from MADDPG import MADDPG
+import argparse
 '''
 https://github.com/Git-123-Hub/maddpg-pettingzoo-pytorch/blob/master/main.py
-
 
 torch==1.11.0
 PettingZoo[mpe]==1.18.1
@@ -19,25 +23,20 @@ gym==0.23.1
 pyglet==1.5.15
 '''
 
-def get_env(env_name, ep_len=25): # 에피소드의 길이ep_len를 kwargs 형태로 env에 넘겨 줌 
+def get_env(end_date, count): # 에피소드의 길이ep_len를 kwargs 형태로 env에 넘겨 줌 
     """
     1. 환경을 정의하고 
     2. 에이전트 별 observation space와 action space를 정의해 줌 
     """
-    new_env = None
-    if env_name == 'simple_adversary_v2':
-        new_env = simple_adversary_v2.parallel_env(max_cycles=ep_len)
-    if env_name == 'simple_spread_v2':
-        new_env = simple_spread_v2.parallel_env(max_cycles=ep_len)
-    if env_name == 'simple_tag_v2':
-        new_env = simple_tag_v2.parallel_env(max_cycles=ep_len)
+    candle_data = SimulationDataProvider("ETH")
+    new_env = CryptoTradingEnv(candle_data, args.count)
 
-    new_env.reset()
+    new_env.reset(end_date, count)
     _dim_info = {}
     for agent_id in new_env.agents:
         _dim_info[agent_id] = []  # [obs_dim, act_dim]
-        _dim_info[agent_id].append(new_env.observation_space(agent_id).shape[0]) # obs space dim
-        _dim_info[agent_id].append(new_env.action_space(agent_id).n) # action space dim
+        _dim_info[agent_id].append(new_env.observation_space[agent_id].shape[0]) # obs space dim
+        _dim_info[agent_id].append(new_env.action_space[agent_id].n) # action space dim
 
     return new_env, _dim_info
 
@@ -49,16 +48,19 @@ if __name__ == '__main__':
     # parser.add_argument('--simple_adversary_v2', type=str,  help='name of the env')    
     
     parser.add_argument('--env_name', default ='simple_adversary_v2', type=str,  help='name of the env')    
-    parser.add_argument('--episode_num', type=int, default=30000,help='total episode num during training procedure')
-    parser.add_argument('--episode_length', type=int, default=25, help='steps per episode')
+    parser.add_argument('--episode_num', type=int, default=2000,help='total episode num during training procedure')
+    parser.add_argument('--episode_length', type=int, default=1000, help='steps per episode')
     parser.add_argument('--learn_interval', type=int, default=100, help='steps interval between learning time')
-    parser.add_argument('--random_steps', type=int, default=5e4, help='random steps before the agent start to learn')
+    parser.add_argument('--random_steps', type=int, default=300, help='random steps before the agent start to learn')
     parser.add_argument('--tau', type=float, default=0.02, help='soft update parameter')
     parser.add_argument('--gamma', type=float, default=0.95, help='discount factor')
     parser.add_argument('--buffer_capacity', type=int, default=int(1e6), help='capacity of replay buffer')
-    parser.add_argument('--batch_size', type=int, default=1024, help='batch-size of replay buffer')
+    parser.add_argument('--batch_size', type=int, default=64, help='batch-size of replay buffer')
     parser.add_argument('--actor_lr', type=float, default=0.01, help='learning rate of actor')
     parser.add_argument('--critic_lr', type=float, default=0.01, help='learning rate of critic')
+    
+    parser.add_argument("--count", type=int, default = 10000, help="size of the Data")
+    parser.add_argument("--end_date", type=str, default = "2022-04-30T07:30:00", help="End date of data")
     args = parser.parse_args()
     
     # create folder to save result
@@ -69,7 +71,8 @@ if __name__ == '__main__':
     result_dir = os.path.join(env_dir, f'{total_files + 1}')
     os.makedirs(result_dir)
 
-    env, dim_info = get_env(args.env_name, args.episode_length)
+    env, dim_info = get_env(args.end_date, args.count)
+
     maddpg = MADDPG(dim_info, args.buffer_capacity, args.batch_size, args.actor_lr, args.critic_lr,result_dir)
     
     step = 0  # global step counter
@@ -77,12 +80,12 @@ if __name__ == '__main__':
     # reward of each episode of each agent
     episode_rewards = {agent_id: np.zeros(args.episode_num) for agent_id in env.agents}# 에이전트 별로 episode 수 (30000) 사이즈의 array 생성 
     for episode in range(args.episode_num):
-        obs = env.reset()
+        obs = env.reset(args.end_date, args.count) # 날짜와 count dynamic하게 변하도록 수정할것!! 
         agent_reward = {agent_id: 0 for agent_id in env.agents}  # 에이전트별 보상을 0으로 초기화(agent reward of the current episode)
         while env.agents:  # done = True 일 때 해당 loop 나옴
             step += 1
             if step < args.random_steps: 
-                action = {agent_id: env.action_space(agent_id).sample() for agent_id in env.agents}# 에이전트별 행동(0~4)를 선택
+                action = {agent_id: env.action_space[agent_id].sample() for agent_id in env.agents}# 에이전트별 행동(0~4)를 선택
             else: # random_steps 이상 step을 진행헀다면..
                 action = maddpg.select_action(obs) # 여기서부터 재미있어짐 .. 
                 
@@ -98,7 +101,7 @@ if __name__ == '__main__':
                 maddpg.update_target(args.tau)
                 
             obs = next_obs
-            print('agents', env.agents)   
+            
         # episode finishes
         for agent_id, r in agent_reward.items():  # record reward
             episode_rewards[agent_id][episode] = r
@@ -111,7 +114,7 @@ if __name__ == '__main__':
                 sum_reward += r
             message += f'sum reward: {sum_reward}'
             print(message)
- 
+            
     maddpg.save(episode_rewards)  # save model
     
 
