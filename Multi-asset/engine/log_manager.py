@@ -1,0 +1,49 @@
+
+import logging
+from logging.handlers import RotatingFileHandler
+
+
+class LogManager:
+    """
+    파일, 스트림 핸들러가 설정된 logger 인스턴스를 제공하는 클래스
+    """
+    # DEBUG, INFO, WARNING, ERROR, CRITICAL (in order of severity) , WARNING is the default
+    log_level = logging.WARNING # 1 
+    
+    file_formatter = logging.Formatter(
+        fmt="%(asctime)s %(levelname)5.5s %(name)20.20s %(lineno)5d - %(message)s"
+    )
+    file_handler = RotatingFileHandler(filename="smtm.log", maxBytes=1000000, backupCount=10)
+    file_handler.setLevel(log_level)
+    file_handler.setFormatter(file_formatter)
+    stream_formatter = logging.Formatter(
+        fmt="%(asctime)s %(levelname)5.5s %(name)20.20s - %(message)s"
+    )
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(log_level) 
+    stream_handler.setFormatter(stream_formatter)
+    logger_map = {}
+
+    @classmethod
+    def get_logger(cls, name):
+        """
+        파일, 스트림 핸들러가 설정된 logger 인스턴스를 제공한다
+        """
+        logger = logging.getLogger(name) # 2
+        log_level = logging.WARNING
+        
+        if name in cls.logger_map:
+            return logger
+
+        logger.addHandler(cls.stream_handler)
+        logger.addHandler(cls.file_handler)
+        logger.setLevel(log_level)
+        cls.logger_map[name] = True
+        return logger
+
+    @classmethod
+    def set_stream_level(cls, level):
+        """
+        스트림 핸들러의 레벨을 설정한다
+        """
+        cls.stream_handler.setLevel(level)
